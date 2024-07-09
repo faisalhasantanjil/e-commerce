@@ -1,0 +1,17 @@
+{% extends "trees/main.html" %}
+{% load static %}
+{% block content %}
+<h1>Order List</h1>
+<a href="{% url 'order_create' %}">Create New Order</a>
+<ul>
+    {% for order in orders %}
+        <li>
+            <a href="{% url 'order_detail' order.pk %}">Order {{ order.id }}</a>
+            <a href="{% url 'order_update' order.pk %}">Edit</a>
+            <a href="{% url 'order_delete' order.pk %}">Delete</a>
+        </li>
+    {% endfor %}
+</ul> 
+
+{% endblock content %}
+

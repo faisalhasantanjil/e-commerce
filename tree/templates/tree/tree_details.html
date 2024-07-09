@@ -1,0 +1,16 @@
+{% extends "tree/main.html" %}
+{% load static %}
+
+{% block content %}
+<h1>{{ tree.name }}</h1>
+    <p>Category: {{ tree.category.name }}</p>
+    <p>Description: {{ tree.description }}</p>
+    <p>Size: {{ tree.size }}</p>
+    <p>Price: ${{ tree.price }}</p>
+    <p>Quantity: {{ tree.quantity }}</p>
+    {% if tree.image %}
+        <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+    {% endif %}
+    <a href="{% url 'tree_list' %}">Back to List</a>
+{% endblock content %}
+

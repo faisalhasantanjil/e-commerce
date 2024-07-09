@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <header>
+        <h1>Signup</h1>
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}">Home</a></li>
+                <li><a href="{% url 'tree_list' %}">Tree</a></li>
+                <li><a href="{% url 'tree_form' %}">Add New Tree</a></li>
+
+                {% if request.user.is_authenticated %}
+                <li><a href="{% url 'signout' %}">Logout</a></li>
+                <li><a href="{% url 'change_password' %}">Change password</a></li>
+                {% else %}
+                <li><a href="{% url 'signin' %}">Signin</a></li>
+                <li><a href="{% url 'signup' %}">Signup</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+    {% block content %}
+
+
+    {% endblock content %}
+
+
+
+</body>
+
+</html>

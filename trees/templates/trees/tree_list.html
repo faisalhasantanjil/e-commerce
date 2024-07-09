@@ -1,0 +1,22 @@
+{% extends "trees/main.html" %}
+{% load static %}
+{% block content %}
+<h1>Tree List</h1>
+    <a href="{% url 'tree_form' %}">Add New Tree</a>
+    <ul>
+        {% for tree in trees %}
+            <li>
+                {% if tree.image %}
+                <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+                <br>
+                {% endif %}
+                <a href="{% url 'tree_details' tree.pk %}">{{ tree.name }}</a>
+                <br>
+                <a href="{% url 'tree_update' tree.pk %}">Edit</a>
+                <a href="{% url 'tree_delete' tree.pk %}">Delete</a>
+            </li>
+            <br>
+        {% endfor %}
+    </ul>
+{% endblock content %}
+

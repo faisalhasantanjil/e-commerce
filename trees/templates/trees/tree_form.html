@@ -1,0 +1,12 @@
+{% extends "trees/main.html" %}
+
+{% block content %}
+<h1>{% if form.instance.pk %}Edit Tree{% else %}Add New Tree{% endif %}</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save</button>
+    </form>
+    <a href="{% url 'tree_list' %}">Back to List</a>
+{% endblock content %}
+
