@@ -36,12 +36,14 @@ urlpatterns = [
     path('trees/<int:pk>/edit/', views.tree_update, name='tree_update'),
     path('trees/<int:pk>/delete/', views.tree_delete, name='tree_delete'),
 
-    path('orders/', views.order_list, name='order_list'),
+    path('order/', views.order, name='order'),
+    path('place_order/', views.place_order, name='place_order'),
+    path('orders/<int:pk>', views.order_item_delete, name='order_item_delete'),
+
+
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('orders/new/', views.order_create, name='order_create'),
     path('orders/<int:pk>/edit/', views.order_update, name='order_update'),
     path('orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
-    path('orders/<int:order_pk>/items/new/', views.order_item_create, name='order_item_create'),
-    path('orders/<int:order_pk>/items/<int:pk>/edit/', views.order_item_update, name='order_item_update'),
     path('orders/<int:order_pk>/items/<int:pk>/delete/', views.order_item_delete, name='order_item_delete'),
 ]

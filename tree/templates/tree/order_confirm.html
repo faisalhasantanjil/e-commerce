@@ -1,0 +1,18 @@
+{% extends "tree/main.html" %}
+{% load static %}
+{% block content %}
+<a href="{% url 'order_create' %}">View Your Cart</a>
+<ul>
+    
+    <h1>Your Order has been Placed Your order id is {{order_placed.id}} </h1>
+    <h4>Your ordered following items</h4>
+    {% for order in order_items%}
+        <li>
+            <p>{{order.tree.name}} </p>
+            <a href="{% url 'tree_details' order.tree.id %}">View Details</a>
+        </li>
+    {% endfor %}
+</ul> 
+
+{% endblock content %}
+

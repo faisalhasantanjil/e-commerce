@@ -1,11 +1,13 @@
 from urllib import response
 from django.contrib.auth import authenticate, login, logout
-from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
+from django.urls import reverse
 from .forms import *
+from .decorators import *
 
 # Create your views here.
 
@@ -138,23 +140,55 @@ def category_update(request, pk):
     form = CategoryForm(instance=category)
   return render(request, 'tree/category_form.html', {'form': form})
 
-@login_required(login_url='login')  # Restrict access if needed
+@login_required(login_url='signin')  # Restrict access if needed
 def category_delete(request, pk):
   category = Category.objects.get(pk=pk)
   if request.method == 'POST':
     category.delete()
     return redirect('category_list')
 
-@login_required(login_url='login')  # Restrict access if needed
+#@login_required(login_url='signin')  # Restrict access if needed
 def tree_list(request):
-  tree = Tree.objects.all().order_by('-id')
-  return render(request, 'tree/tree_list.html', {'tree': tree})
+  trees = Tree.objects.all().order_by('-id')
+  return render(request, 'tree/tree_list.html', {'trees': trees})
 
 @login_required
 def tree_details(request, pk):
     tree = get_object_or_404(Tree, pk=pk)
-    print(tree.image.url)
-    return render(request, 'tree/tree_details.html', {'tree': tree})
+    order_exist = OrderItem.objects.filter(user=request.user,tree= tree,ordered=False).first()
+    #print(order_exist)
+    if order_exist:
+        form= OrderItemForm(instance=order_exist)
+        if request.method == 'POST':
+                form = OrderItemForm(request.POST, instance=order_exist)
+                if form.is_valid():
+                    order_item = form.save(commit=False)
+                    order_item.user = request.user
+                    order_item.tree= tree
+                    order_item.save()
+                    return HttpResponseRedirect(request.path_info)
+        context= {
+        'tree': tree,
+        'form': form
+        }
+    else:
+        form= OrderItemForm()
+        if request.method == 'POST':
+            form = OrderItemForm(request.POST)
+            if form.is_valid():
+                order_item = form.save()
+                order_item.user = request.user
+                order_item.tree= tree
+                order_item.save()
+                return HttpResponseRedirect(request.path_info)
+        
+        context= {
+        'tree': tree,
+        'form': form
+        }
+    #print(dir(request.user))
+    print(request.user.is_staff)
+    return render(request, 'tree/tree_details.html', context)
 
 @login_required
 def tree_details_admin(request, pk):
@@ -162,7 +196,8 @@ def tree_details_admin(request, pk):
     print(tree.image.url)
     return render(request, 'tree/tree_details_admin.html', {'tree': tree})
 
-@login_required(login_url='login')  # Restrict access if needed
+@login_required(login_url='signin')
+@staff_access_only()  # Restrict access if needed
 def tree_form(request):
   if request.method == 'POST':
     form = TreeForm(request.POST, request.FILES)  # Include request.FILES for image upload
@@ -173,7 +208,7 @@ def tree_form(request):
     form = TreeForm()
   return render(request, 'tree/tree_form.html', {'form': form})
 
-@login_required(login_url='login')  # Restrict access if needed
+@login_required(login_url='signin')  # Restrict access if needed
 def tree_update(request, pk):
   tree = Tree.objects.get(pk=pk)
   if request.method == 'POST':
@@ -185,70 +220,57 @@ def tree_update(request, pk):
     form = TreeForm(instance=tree)
   return render(request, 'tree/tree_form.html', {'form': form})
 
-@login_required(login_url='login')  # Restrict access if needed
+@login_required(login_url='signin')  # Restrict access if needed
 def tree_delete(request, pk):
   tree = Tree.objects.get(pk=pk)
   tree.delete()
   return redirect('tree_list')
 
-  
-@login_required
-def order_list(request):
-    orders = Order.objects.filter(user=request.user)
-    return render(request, 'tree/order_list.html', {'orders': orders})
 
 @login_required
-def order_detail(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
-    return render(request, 'tree/order_detail.html', {'order': order})
+def order(request):
+    orders = OrderItem.objects.filter(user=request.user, ordered= False)
+    previous_orders = OrderItem.objects.filter(user=request.user, ordered= True)
+    form= OrderForm()
+    context={
+       'orders':orders,
+       'previous_orders': previous_orders,
+       'form': form,
+    }
+    
+    return render(request, 'tree/order_item_form.html', context)
 
 @login_required
-def order_create(request):
+def place_order(request):
     if request.method == 'POST':
         form = OrderForm(request.POST)
+        orders = OrderItem.objects.filter(user=request.user, ordered= False)
         if form.is_valid():
-            order = form.save(commit=False)
-            order.user = request.user
-            order.save()
-            return redirect('order_list')
-    else:
-        form = OrderForm()
-    return render(request, 'tree/order_form.html', {'form': form})
+            order_placed = form.save(commit=False)
+            order_placed.user = request.user
+            order_placed.save()
+            #order_placed.items.add(*[item for item in orders if not item.ordered])
+            for item in orders:
+                if not item.ordered:
+                    order_placed.items.add(item)
+                    item.ordered = True
+                    item.save()
 
-@login_required
-def order_update(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
-    if request.method == 'POST':
-        form = OrderForm(request.POST, instance=order)
-        if form.is_valid():
-            form.save()
-            return redirect('order_list')
-    else:
-        form = OrderForm(instance=order)
-    return render(request, 'tree/order_form.html', {'form': form})
+            order_placed.save()
+            #form.save_m2m
+        order_items= order_placed.items.all()
+    
+    context={
+       'order_placed':order_placed,
+       'order_items':order_items,
+    }
+    
+    return render(request, 'tree/order_confirm.html', context)
 
-@login_required
-def order_delete(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
-    if request.method == 'POST':
-        order.delete()
-        return redirect('order_list')
-    return render(request, 'tree/order_confirm_delete.html', {'order': order})
 
-@login_required
-def order_item_create(request, order_pk):
-    order = get_object_or_404(Order, pk=order_pk, user=request.user)
-    if request.method == 'POST':
-        form = OrderItemForm(request.POST)
-        if form.is_valid():
-            order_item = form.save(commit=False)
-            order_item.order = order
-            order_item.save()
-            return redirect('order_detail', pk=order.pk)
-    else:
-        form = OrderItemForm()
-    return render(request, 'tree/order_item_form.html', {'form': form})
 
+
+'''
 @login_required
 def order_item_update(request, order_pk, pk):
     order = get_object_or_404(Order, pk=order_pk, user=request.user)
@@ -261,12 +283,73 @@ def order_item_update(request, order_pk, pk):
     else:
         form = OrderItemForm(instance=order_item)
     return render(request, 'tree/order_item_form.html', {'form': form})
+'''
 
 @login_required
-def order_item_delete(request, order_pk, pk):
-    order = get_object_or_404(Order, pk=order_pk, user=request.user)
-    order_item = get_object_or_404(OrderItem, pk=pk, order=order)
-    if request.method == 'POST':
+def order_item_delete(request, pk):
+    order_item = get_object_or_404(OrderItem, id=pk)
+    if order_item:
         order_item.delete()
-        return redirect('order_detail', pk=order.pk)
-    return render(request, 'tree/order_item_confirm_delete.html', {'order_item': order_item})
+        return HttpResponseRedirect(reverse('tree_details', kwargs={'pk': order_item.tree.id}))
+    orders = OrderItem.objects.filter(user=request.user, ordered= False)
+    previous_orders = OrderItem.objects.filter(user=request.user, ordered= True)
+    context={
+       'orders':orders,
+       'previous_orders': previous_orders
+    }
+    
+    return render(request, 'tree/order_item_form.html', context)
+
+###########################################################################################################################
+
+'''
+#ADMIN-------------
+@login_required
+def order_list(request):
+    orders = Order.objects.filter(user=request.user)
+    return render(request, 'tree/order_list.html', {'orders': orders})
+'''
+#ADMIN-------------
+@login_required
+def order_list(request):
+    orders = Order.objects.filter(user=request.user)
+    return render(request, 'tree/order_list.html', {'orders': orders})
+
+#ADMIN-------------
+@login_required
+def order_detail(request, pk):
+    order = get_object_or_404(Order, pk=pk, user=request.user)
+    return render(request, 'tree/order_detail.html', {'order': order})
+#ADMIN-------------
+@login_required
+def order_create(request):
+    if request.method == 'POST':
+        form = OrderForm(request.POST)
+        if form.is_valid():
+            order = form.save(commit=False)
+            order.user = request.user
+            order.save()
+            return redirect('order_list')
+    else:
+        form = OrderForm()
+    return render(request, 'tree/order_form.html', {'form': form})
+#ADMIN-------------
+@login_required
+def order_update(request, pk):
+    order = get_object_or_404(Order, pk=pk, user=request.user)
+    if request.method == 'POST':
+        form = OrderForm(request.POST, instance=order)
+        if form.is_valid():
+            form.save()
+            return redirect('order_list')
+    else:
+        form = OrderForm(instance=order)
+    return render(request, 'tree/order_form.html', {'form': form})
+#ADMIN-------------
+@login_required
+def order_delete(request, pk):
+    order = get_object_or_404(Order, pk=pk, user=request.user)
+    if request.method == 'POST':
+        order.delete()
+        return redirect('order_list')
+    return render(request, 'tree/order_confirm_delete.html', {'order': order})

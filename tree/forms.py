@@ -29,9 +29,18 @@ class TreeForm(forms.ModelForm):
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
-        fields = ['is_paid']
-
+        fields = ['delivery_address']
+        '''
+        def save(self, commit=True):
+            instance = super().save()
+            # Here, you can add logic to handle order placement confirmation,
+            # such as setting the status or processing payment.
+            for item in instance.items:
+                item.ordered = True
+                item.save()
+            return instance
+'''
 class OrderItemForm(forms.ModelForm):
     class Meta:
         model = OrderItem
-        fields = ['tree', 'quantity']
+        fields = ['quantity']

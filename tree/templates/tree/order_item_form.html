@@ -1,0 +1,48 @@
+{% extends "tree/main.html" %}
+{% load static %}
+{% block content %}
+<h1>Order List</h1>
+<a href="{% url 'order_create' %}">Create New Order</a>
+<ul>
+    {% if orders %}
+    <h1>Cart</h1>
+    {% endif %}
+
+    {% for order in orders %}
+    
+        <li>
+            <p>{{order.tree.name}} </p>
+            <a href="{% url 'tree_details' order.tree.id %}">Edit</a>
+            <a href="{% url 'order_item_delete' order.id %}">Delete</a>
+        </li>
+    {% endfor %}
+    {% if orders %}
+    <section>
+        <form method="POST" action={% url "place_order" %}>
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Place Order</button>
+        </form>
+    </section>
+    {% endif %}
+
+
+    {% if previous_orders %}
+    <h1>Previous Orders</h1>
+    {% endif %}
+
+    {% for order in previous_orders %}
+    
+        <li>
+            <p>{{order.tree.name}} </p>
+            <a href="{% url 'tree_details' order.tree.id %}">View Details</a>
+        </li>
+    {% endfor %}
+    {% comment "" %}
+    
+    <a href="{% url 'order_item_delete' order.pk %}">Delete</a>
+    {% endcomment %}
+    
+</ul> 
+
+{% endblock content %}

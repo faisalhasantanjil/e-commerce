@@ -69,7 +69,7 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField(default=1, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.quantity} of {self.tree.name}"
+        return f"{self.quantity} of {self.tree.name} ordered by {self.user.username}"
 
     def get_total_price(self):
         return self.tree.price * self.quantity
@@ -84,9 +84,15 @@ class OrderItem(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        if self.ordered == True:
+            raise ValidationError("This order item has been placed. It can not be deleted")
         self.tree.adjust_quantity(self.quantity)
         super().delete(*args, **kwargs)
-   
+'''
+    def order_placed_confirm(self):
+        self.ordered = True
+        self.save()
+'''
 # Order model
 class Order(models.Model):
     STATUS = [
@@ -100,8 +106,33 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
     is_paid = models.BooleanField(default=False, blank=True, null=True)
-    status= models.CharField(max_length=20, null=True, blank=True, default="Ongoing", choices=STATUS) 
+    status= models.CharField(max_length=20, null=True, blank=True, default="Ongoing", choices=STATUS)
+    delivery_address = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"Order {self.id} by {self.user.username}"
-
+    '''
+    def save(self, *args, **kwargs):
+    # Create a set of existing order item IDs before saving
+        # Save the order first to ensure it has a primary key
+        print('1 trig')
+        super().save(*args, **kwargs)
+        print('2 trig')
+        # Create a set of existing order item IDs before saving
+        existing_item_ids = set(self.items.values_list('id', flat=True))
+        print('3 trig')
+        print(self.items.all())
+        print('4 trig')
+        # Update is_ordered for newly added items only
+        for item in self.items.all():
+            print('------------------')
+            print(item)
+            print('------------------')
+            if item.id not in existing_item_ids:
+                print('000000000')
+                print(item)
+                print('00000000')
+                item.ordered = True
+                item.save()
+        super().save(*args, **kwargs)
+        '''
