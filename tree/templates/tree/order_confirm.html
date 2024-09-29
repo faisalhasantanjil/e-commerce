@@ -4,7 +4,7 @@
 <a href="{% url 'order_create' %}">View Your Cart</a>
 <ul>
     
-    <h1>Your Order has been Placed Your order id is {{order_placed.id}} </h1>
+    <h1>Your order has been placed Your order id is {{order_placed.id}} </h1>
     <h4>Your ordered following items</h4>
     {% for order in order_items%}
         <li>
@@ -12,6 +12,12 @@
             <a href="{% url 'tree_details' order.tree.id %}">View Details</a>
         </li>
     {% endfor %}
+    <h4>Your Payment method is cash-on-delivery. Click on the button to pay online </h4>
+    <form action= {% url "create_checkout_session" order_placed.id %} method="POST">
+        {% csrf_token %}
+        <button type="submit" id="checkout-button">Checkout</button>
+    </form>
+    
 </ul> 
 
 {% endblock content %}

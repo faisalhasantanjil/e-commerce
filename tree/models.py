@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 
+
 # Category model
 class Category(models.Model):
     name = models.CharField(max_length=255)
@@ -67,6 +68,7 @@ class OrderItem(models.Model):
     tree = models.ForeignKey(Tree, on_delete=models.CASCADE, blank=True, null=True)
     ordered = models.BooleanField(default=False, blank=True, null=True)
     quantity = models.PositiveIntegerField(default=1, blank=True, null=True)
+    is_paid = models.BooleanField(default=False, blank=True, null=True)
 
     def __str__(self):
         return f"{self.quantity} of {self.tree.name} ordered by {self.user.username}"
@@ -84,7 +86,7 @@ class OrderItem(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.ordered == True:
+        if self.ordered and self.is_paid :
             raise ValidationError("This order item has been placed. It can not be deleted")
         self.tree.adjust_quantity(self.quantity)
         super().delete(*args, **kwargs)
@@ -108,31 +110,33 @@ class Order(models.Model):
     is_paid = models.BooleanField(default=False, blank=True, null=True)
     status= models.CharField(max_length=20, null=True, blank=True, default="Ongoing", choices=STATUS)
     delivery_address = models.CharField(max_length=100, blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, blank= True, null= True)
+    name= models.CharField(max_length=250, default="", null=True, blank= True)
 
     def __str__(self):
         return f"Order {self.id} by {self.user.username}"
-    '''
+    
+
     def save(self, *args, **kwargs):
     # Create a set of existing order item IDs before saving
         # Save the order first to ensure it has a primary key
-        print('1 trig')
-        super().save(*args, **kwargs)
-        print('2 trig')
-        # Create a set of existing order item IDs before saving
-        existing_item_ids = set(self.items.values_list('id', flat=True))
-        print('3 trig')
-        print(self.items.all())
-        print('4 trig')
-        # Update is_ordered for newly added items only
-        for item in self.items.all():
-            print('------------------')
-            print(item)
-            print('------------------')
-            if item.id not in existing_item_ids:
-                print('000000000')
-                print(item)
-                print('00000000')
-                item.ordered = True
-                item.save()
-        super().save(*args, **kwargs)
-        '''
+        if self.pk:
+            sum_of_price=0
+            for item in self.items.all():
+                sum_of_price= sum_of_price + item.get_total_price()
+            self.price = sum_of_price
+            self.name = str(self.pk) + " ordered by " + str(self.user)
+            if self.is_paid:
+                for item in self.items.all():
+                    item.is_paid = True
+                    item.save()
+            
+            super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        for item in self.items.all:
+            print("Order ")
+            item.delete()
+        super().delete(*args, **kwargs)

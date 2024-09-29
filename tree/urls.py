@@ -46,4 +46,10 @@ urlpatterns = [
     path('orders/<int:pk>/edit/', views.order_update, name='order_update'),
     path('orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
     path('orders/<int:order_pk>/items/<int:pk>/delete/', views.order_item_delete, name='order_item_delete'),
+
+    #PAYMENT
+    path('create_checkout_session/<int:pk>/', views.create_checkout_session.as_view(), name='create_checkout_session'),
+    path('webhooks/stripe/', views.my_webhook_view, name ='stripe_webhook'),
+    path('success/', views.success, name='success'),
+    path('cancel/', views.cancel, name='cancel'),
 ]

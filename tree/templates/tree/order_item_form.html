@@ -30,14 +30,32 @@
     {% if previous_orders %}
     <h1>Previous Orders</h1>
     {% endif %}
-
     {% for order in previous_orders %}
+    <ul>
+        <p> <b>{{ order.id }}</b> </p>
+        {% for item in order.items.all %}
+            <li>
+                <p>{{ item.tree.name }} </p>
+                <a href="{% url 'tree_details' item.tree.id %}">View Details</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endfor %}
     
-        <li>
-            <p>{{order.tree.name}} </p>
-            <a href="{% url 'tree_details' order.tree.id %}">View Details</a>
-        </li>
-    {% endfor %}
+ {% comment "" %}
+    {% for order in previous_orders %}
+    <ul>
+        <p>{{ order.id }} </p>
+        <p>{{ order.items.all }} </p>  
+        {% for item in order.items.all %}
+            <li>
+                <p>{{ item.tree.name }} </p>
+                <a href="{% url 'tree_details' item.tree.id %}">View Details</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endfor %}
+% endcomment %}
     {% comment "" %}
     
     <a href="{% url 'order_item_delete' order.pk %}">Delete</a>

@@ -3,11 +3,16 @@ from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.urls import reverse
 from .forms import *
 from .decorators import *
+from django.views import View
+from django.conf import settings
+import stripe
+
 
 # Create your views here.
 
@@ -59,6 +64,7 @@ def signup(request):
         'profile_form': profile_form,
     }
     return render(request, 'tree/signup.html', context)
+
 
 @login_required(login_url='signin')
 def change_password(request):
@@ -152,15 +158,36 @@ def tree_list(request):
   trees = Tree.objects.all().order_by('-id')
   return render(request, 'tree/tree_list.html', {'trees': trees})
 
-@login_required
+
 def tree_details(request, pk):
     tree = get_object_or_404(Tree, pk=pk)
-    order_exist = OrderItem.objects.filter(user=request.user,tree= tree,ordered=False).first()
-    #print(order_exist)
-    if order_exist:
-        form= OrderItemForm(instance=order_exist)
-        if request.method == 'POST':
-                form = OrderItemForm(request.POST, instance=order_exist)
+
+    if not request.user.is_authenticated:
+       context= {
+        'tree': tree,
+        }
+       
+    else :
+        order_exist = OrderItem.objects.filter(user=request.user,tree= tree,ordered=False).first()
+        #print(order_exist)
+        if order_exist:
+            form= OrderItemForm(instance=order_exist)
+            if request.method == 'POST':
+                    form = OrderItemForm(request.POST, instance=order_exist)
+                    if form.is_valid():
+                        order_item = form.save(commit=False)
+                        order_item.user = request.user
+                        order_item.tree= tree
+                        order_item.save()
+                        return HttpResponseRedirect(request.path_info)
+            context= {
+            'tree': tree,
+            'form': form
+            }
+        else:
+            form= OrderItemForm()
+            if request.method == 'POST':
+                form = OrderItemForm(request.POST)
                 if form.is_valid():
                     order_item = form.save(commit=False)
                     order_item.user = request.user
@@ -171,23 +198,7 @@ def tree_details(request, pk):
         'tree': tree,
         'form': form
         }
-    else:
-        form= OrderItemForm()
-        if request.method == 'POST':
-            form = OrderItemForm(request.POST)
-            if form.is_valid():
-                order_item = form.save()
-                order_item.user = request.user
-                order_item.tree= tree
-                order_item.save()
-                return HttpResponseRedirect(request.path_info)
-        
-        context= {
-        'tree': tree,
-        'form': form
-        }
-    #print(dir(request.user))
-    print(request.user.is_staff)
+    
     return render(request, 'tree/tree_details.html', context)
 
 @login_required
@@ -209,6 +220,7 @@ def tree_form(request):
   return render(request, 'tree/tree_form.html', {'form': form})
 
 @login_required(login_url='signin')  # Restrict access if needed
+@staff_access_only()
 def tree_update(request, pk):
   tree = Tree.objects.get(pk=pk)
   if request.method == 'POST':
@@ -230,8 +242,11 @@ def tree_delete(request, pk):
 @login_required
 def order(request):
     orders = OrderItem.objects.filter(user=request.user, ordered= False)
-    previous_orders = OrderItem.objects.filter(user=request.user, ordered= True)
+    previous_orders = Order.objects.filter(user=request.user)
     form= OrderForm()
+    print("-----------------------")
+    for i in orders:
+       print(i.id)
     context={
        'orders':orders,
        'previous_orders': previous_orders,
@@ -255,11 +270,12 @@ def place_order(request):
                     order_placed.items.add(item)
                     item.ordered = True
                     item.save()
-
             order_placed.save()
             #form.save_m2m
         order_items= order_placed.items.all()
-    
+    else:
+        order_placed = Order.objects.filter(user=request.user,is_paid = False).first()
+        order_items= order_placed.items.all()
     context={
        'order_placed':order_placed,
        'order_items':order_items,
@@ -292,7 +308,8 @@ def order_item_delete(request, pk):
         order_item.delete()
         return HttpResponseRedirect(reverse('tree_details', kwargs={'pk': order_item.tree.id}))
     orders = OrderItem.objects.filter(user=request.user, ordered= False)
-    previous_orders = OrderItem.objects.filter(user=request.user, ordered= True)
+    previous_orders = Order.objects.filter(user=request.user)  
+
     context={
        'orders':orders,
        'previous_orders': previous_orders
@@ -300,7 +317,88 @@ def order_item_delete(request, pk):
     
     return render(request, 'tree/order_item_form.html', context)
 
-###########################################################################################################################
+
+stripe.api_key= settings.STRIPE_SECRET_KEY
+
+def order_payment_online(request, pk):
+    
+    return render(request,'tree/order_payment_online.html')
+
+#@login_required
+class create_checkout_session(View):
+    def post(self, request, *args, **kwargs):
+        DOMAIN = 'http://127.0.0.1:8000/'
+        order_id= self.kwargs["pk"]
+        order = Order.objects.get(id= order_id)
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[
+                {
+                    # Provide the exact Price ID (for example, pr_1234) of the product you want to sell
+                    "price_data": {
+                        "currency": "usd",
+                        "unit_amount": int(order.price*100),
+                        'product_data':{
+                            'name': order.name
+                        },
+                    },
+                    'quantity': 1,
+                },
+            ],
+            metadata={
+               'product_order_id': order.id
+            },
+            mode='payment',
+            success_url= DOMAIN + 'success/',
+            cancel_url= DOMAIN + 'cancel/',
+        )
+        return redirect(checkout_session.url, code=303)
+    
+def success(request):
+    return render(request, 'tree/success.html')
+
+def cancel(request):
+    return render(request, 'tree/cancel.html')
+
+endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+@csrf_exempt
+def my_webhook_view(request):
+  payload = request.body
+  sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+  event = None
+
+  try:
+    event = stripe.Webhook.construct_event(
+      payload, sig_header, endpoint_secret
+    )
+  except ValueError as e:
+    # Invalid payload
+    return HttpResponse(status=400)
+  except stripe.error.SignatureVerificationError as e:
+    # Invalid signature
+    return HttpResponse(status=400)
+
+  if (
+    event['type'] == 'checkout.session.completed'
+    or event['type'] == 'checkout.session.async_payment_succeeded'
+  ):
+    session = event['data']['object']
+    customer_email = session['customer_details']['email']
+    product_id = session['metadata']['product_order_id']
+    print("=======================================================product_id")
+    print(product_id)
+    order = get_object_or_404(Order, pk=int(product_id))
+    order.is_paid = True
+    order.save()
+
+  return HttpResponse(status=200)
+
+
+def order_is_paid(order_id):
+   order = get_object_or_404(Order, pk=order_id)
+   order.is_paid = True
+   order.save()
+################################################################################
 
 '''
 #ADMIN-------------
@@ -309,6 +407,7 @@ def order_list(request):
     orders = Order.objects.filter(user=request.user)
     return render(request, 'tree/order_list.html', {'orders': orders})
 '''
+
 #ADMIN-------------
 @login_required
 def order_list(request):
@@ -320,6 +419,7 @@ def order_list(request):
 def order_detail(request, pk):
     order = get_object_or_404(Order, pk=pk, user=request.user)
     return render(request, 'tree/order_detail.html', {'order': order})
+
 #ADMIN-------------
 @login_required
 def order_create(request):
@@ -333,6 +433,7 @@ def order_create(request):
     else:
         form = OrderForm()
     return render(request, 'tree/order_form.html', {'form': form})
+
 #ADMIN-------------
 @login_required
 def order_update(request, pk):
@@ -345,6 +446,7 @@ def order_update(request, pk):
     else:
         form = OrderForm(instance=order)
     return render(request, 'tree/order_form.html', {'form': form})
+
 #ADMIN-------------
 @login_required
 def order_delete(request, pk):
