@@ -38,14 +38,14 @@ urlpatterns = [
 
     path('order/', views.order, name='order'),
     path('place_order/', views.place_order, name='place_order'),
-    path('orders/<int:pk>', views.order_item_delete, name='order_item_delete'),
+    path('order/<int:pk>', views.order_item_delete, name='order_item_delete'),
 
-
+    #For Admin or staff only
+    path('orders', views.order_list, name='order_list'),
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('orders/new/', views.order_create, name='order_create'),
-    path('orders/<int:pk>/edit/', views.order_update, name='order_update'),
+    path('orders/<int:pk>/edit/', views.orders_update, name='orders_update'),
     path('orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
-    path('orders/<int:order_pk>/items/<int:pk>/delete/', views.order_item_delete, name='order_item_delete'),
 
     #PAYMENT
     path('create_checkout_session/<int:pk>/', views.create_checkout_session.as_view(), name='create_checkout_session'),

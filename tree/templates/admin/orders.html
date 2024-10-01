@@ -1,0 +1,74 @@
+{% extends "tree/main.html" %}
+{% load static %}
+{% block content %}
+<h1>Pending Orders</h1>
+<ul>
+    {% for orders in pending_orders %}
+        <li>
+            <strong>{{orders.name}}</strong>
+            <br>
+            <p>Customer Email: {{orders.user}} </p>
+            <p>Amount: {{orders.price}} </p>
+            <p>Created: {{orders.created_at}} </p>
+            <p>Updated: {{orders.updated_at}} </p>
+            {% for tree in  orders.items.all %}
+            <img src="{% static tree.tree.image.url %}" alt="{{ tree.name }}">
+            <p>{{tree.tree.name}} </p>
+            <p>{{tree.quantity}} </p>
+            {% endfor %}
+            {% if tree.image %}
+            <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+            <br>
+            {% endif %}
+            <a href="{% url 'orders_update' orders.pk %}">{{ orders.name }}</a>
+            <br>
+            <a href="{% url 'orders_update' orders.pk %}">Edit</a>
+            <a href="{% url 'order_delete' orders.pk %}">Delete</a>
+            <hr>
+        </li>
+        <br>
+    {% endfor %}
+</ul>
+
+<h1>Update Payment Status</h1>
+<ul>
+    {% for orders in pending_orders %}
+        <li>
+            <strong>{{orders.name}}</strong>
+            {% for tree in  order.items.all %}
+            <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+            {% endfor %}
+            {% if tree.image %}
+            <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+            <br>
+            {% endif %}
+            <a href="{% url 'orders_update' orders.pk %}">{{ orders.name }}</a>
+            <br>
+            <a href="{% url 'orders_update' orders.pk %}">Edit</a>
+            <a href="{% url 'order_delete' orders.pk %}">Delete</a>
+        </li>
+        <br>
+    {% endfor %}
+</ul>
+<h1>Completed</h1>
+<ul>
+    {% for orders in pending_orders %}
+        <li>
+            <strong>{{orders.name}}</strong>
+            {% for tree in  order.items.all %}
+            <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+            {% endfor %}
+            {% if tree.image %}
+            <img src="{% static tree.image.url %}" alt="{{ tree.name }}">
+            <br>
+            {% endif %}
+            <a href="{% url 'orders_update' orders.pk %}">{{ orders.name }}</a>
+            <br>
+            <a href="{% url 'orders_update' orders.pk %}">Edit</a>
+            <a href="{% url 'order_delete' orders.pk %}">Delete</a>
+        </li>
+        <br>
+    {% endfor %}
+</ul>
+
+{% endblock  %}

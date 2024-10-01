@@ -11,6 +11,8 @@ from .forms import *
 from .decorators import *
 from django.views import View
 from django.conf import settings
+from django.core.mail import send_mail
+
 import stripe
 
 
@@ -156,7 +158,18 @@ def category_delete(request, pk):
 #@login_required(login_url='signin')  # Restrict access if needed
 def tree_list(request):
   trees = Tree.objects.all().order_by('-id')
-  return render(request, 'tree/tree_list.html', {'trees': trees})
+  search_name = request.GET.get('name', '')
+  if search_name:
+     trees = trees.filter(name__icontains=search_name)
+  staff = False
+  if request.user.is_authenticated:
+     staff = request.user.is_staff
+  context = {
+     'trees': trees,
+     'staff': staff
+
+  }
+  return render(request, 'tree/tree_list.html',context)
 
 
 def tree_details(request, pk):
@@ -205,7 +218,7 @@ def tree_details(request, pk):
 def tree_details_admin(request, pk):
     tree = get_object_or_404(Tree, pk=pk)
     print(tree.image.url)
-    return render(request, 'tree/tree_details_admin.html', {'tree': tree})
+    return render(request, 'admin/tree_details_admin.html', {'tree': tree})
 
 @login_required(login_url='signin')
 @staff_access_only()  # Restrict access if needed
@@ -217,7 +230,7 @@ def tree_form(request):
       return redirect('tree_list')
   else:
     form = TreeForm()
-  return render(request, 'tree/tree_form.html', {'form': form})
+  return render(request, 'admin/tree_form.html', {'form': form})
 
 @login_required(login_url='signin')  # Restrict access if needed
 @staff_access_only()
@@ -230,7 +243,7 @@ def tree_update(request, pk):
       return redirect('tree_list')
   else:
     form = TreeForm(instance=tree)
-  return render(request, 'tree/tree_form.html', {'form': form})
+  return render(request, 'admin/tree_form.html', {'form': form})
 
 @login_required(login_url='signin')  # Restrict access if needed
 def tree_delete(request, pk):
@@ -385,8 +398,6 @@ def my_webhook_view(request):
     session = event['data']['object']
     customer_email = session['customer_details']['email']
     product_id = session['metadata']['product_order_id']
-    print("=======================================================product_id")
-    print(product_id)
     order = get_object_or_404(Order, pk=int(product_id))
     order.is_paid = True
     order.save()
@@ -394,11 +405,8 @@ def my_webhook_view(request):
   return HttpResponse(status=200)
 
 
-def order_is_paid(order_id):
-   order = get_object_or_404(Order, pk=order_id)
-   order.is_paid = True
-   order.save()
-################################################################################
+
+################################################################
 
 '''
 #ADMIN-------------
@@ -410,18 +418,28 @@ def order_list(request):
 
 #ADMIN-------------
 @login_required
+@staff_access_only()
 def order_list(request):
-    orders = Order.objects.filter(user=request.user)
-    return render(request, 'tree/order_list.html', {'orders': orders})
+    pending_orders = Order.objects.exclude(status ='Delivered')
+    payment_update = Order.objects.filter(is_paid = False, status='Delivered')
+    completed_orders = Order.objects.filter(is_paid = True, status='Delivered')
+    context = {
+       'pending_orders':pending_orders,
+       'payment_update':payment_update,
+       'completed_orders':completed_orders,
+    }
+    return render(request, 'admin/orders.html', context) 
 
 #ADMIN-------------
 @login_required
+@staff_access_only()
 def order_detail(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
-    return render(request, 'tree/order_detail.html', {'order': order})
+    order = get_object_or_404(Order, pk=pk)
+    return render(request, 'tree/order_detail.html', {'orders': order})
 
 #ADMIN-------------
 @login_required
+@staff_access_only()
 def order_create(request):
     if request.method == 'POST':
         form = OrderForm(request.POST)
@@ -436,22 +454,28 @@ def order_create(request):
 
 #ADMIN-------------
 @login_required
-def order_update(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
+def orders_update(request, pk):
+    order = get_object_or_404(Order, pk=pk)
     if request.method == 'POST':
-        form = OrderForm(request.POST, instance=order)
+        form = UpdateOrderForm(request.POST, instance=order)
         if form.is_valid():
             form.save()
+            # send email
+            subject = 'Your Order Update on Treecommerce' 
+            message = f"Dear {order.user.username},\nThis is an automated email regarding your recent order update.\nYour Order ID: {order.id}.\nYour current order status is: {order.status}.\nRegards,\nTreecommerce"
+
+            from_email = settings.EMAIL_HOST_USER
+            recipient_list = [order.user.email]
+            send_mail(subject, message, from_email, recipient_list)
             return redirect('order_list')
     else:
-        form = OrderForm(instance=order)
-    return render(request, 'tree/order_form.html', {'form': form})
+        form = UpdateOrderForm(instance=order)
+    return render(request, 'admin/orders_details.html', {'form': form,'orders': order})
 
 #ADMIN-------------
 @login_required
 def order_delete(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
+    order = get_object_or_404(Order, pk=pk)
     if request.method == 'POST':
         order.delete()
         return redirect('order_list')
-    return render(request, 'tree/order_confirm_delete.html', {'order': order})

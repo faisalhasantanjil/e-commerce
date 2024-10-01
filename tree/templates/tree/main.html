@@ -15,7 +15,11 @@
             <ul>
                 <li><a href="{% url 'home' %}">Home</a></li>
                 <li><a href="{% url 'tree_list' %}">Tree</a></li>
+                {% if user.is_staff %}
                 <li><a href="{% url 'tree_form' %}">Add New Tree</a></li>
+                <li><a href="{% url 'order_list' %}">Orders</a></li>
+                {% endif %}
+                
 
                 {% if request.user.is_authenticated %}
                 <li><a href="{% url 'order' %}">Orders</a></li>

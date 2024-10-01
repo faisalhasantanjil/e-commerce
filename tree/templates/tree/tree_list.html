@@ -2,7 +2,16 @@
 {% load static %}
 {% block content %}
 <h1>Tree List</h1>
-    <a href="{% url 'tree_form' %}">Add New Tree</a>
+    {% if staff %}
+        <a href="{% url 'tree_form' %}">Add New Tree</a>
+    {% endif %}
+    <form method="get" class="pt-3">
+        <div class="row">
+            <div class="col-3 align-middle">
+                <input type="text" name="name" placeholder="Name" class="mx-auto w-75" value="{{ request.GET.name }}">
+            </div>
+    </form>
+    
     <ul>
         {% for tree in trees %}
             <li>
